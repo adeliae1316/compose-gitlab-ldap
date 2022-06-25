@@ -31,7 +31,8 @@ Only special notes should be noted.
     docker-compose up -d
     ```
 
-    Wait a little until the following log is output.
+    Wait a little until the following log is output.  
+    Check log with `docker-compose logs -f web` .
 
     ```plain
     gitlab-ce       | 
