@@ -1,0 +1,106 @@
+# https://github.com/osixia/docker-openldap/blob/master/example/docker-compose.yml
+# https://docs.gitlab.com/ee/administration/auth/ldap/index.html
+
+version: '3.6'
+services:
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+    restart: always
+    environment:
+      LDAP_LOG_LEVEL: '256'
+      LDAP_ORGANISATION: ${_LDAP_ORGANISATION}
+      LDAP_DOMAIN: ${_LDAP_DOMAIN}
+      LDAP_BASE_DN: ''
+      LDAP_ADMIN_PASSWORD: 'admin'
+      LDAP_CONFIG_PASSWORD: 'config'
+      LDAP_READONLY_USER: 'false'
+      LDAP_RFC2307BIS_SCHEMA: 'false'
+      LDAP_BACKEND: 'mdb'
+      LDAP_TLS: 'false'
+      LDAP_REPLICATION: 'false'
+      KEEP_EXISTING_CONFIG: 'false'
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: 'true'
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./openldap/ldap:/var/lib/ldap
+      - ./openldap/slapd:/etc/ldap/slapd.d
+      - ./openldap/init.ldif:/tmp/init.ldif
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: phpldapadmin
+    restart: always
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: 'openldap'
+      PHPLDAPADMIN_HTTPS: 'false'
+    ports:
+      - '${_LDAP_ADMIN_PORT}:80'
+    depends_on:
+      - openldap
+
+  web:
+    image: 'gitlab/gitlab-ce:latest'
+    container_name: gitlab-ce
+    restart: always
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        # to enable frontpage
+        # https://obel.hatenablog.jp/entry/20180430/1525082622
+        external_url 'http://${_HOSTNAME}:${_GITLAB_HTTP_PORT}'
+        nginx['listen_port'] = 80
+        # to enable pages
+        pages_external_url 'http://${_HOSTNAME}:${_GITLAB_HTTP_PORT}'
+        gitlab_pages['enable'] = true
+        # to enable lfs
+        gitlab_rails['lfs_enabled'] = true
+        # to enable ldap outh
+        # https://docs.gitlab.com/ee/administration/auth/ldap/index.html
+        gitlab_rails['ldap_enabled'] = true
+        gitlab_rails['prevent_ldap_sign_in'] = false
+        gitlab_rails['ldap_servers'] = {
+          'main' => {
+            'label' => 'LDAP',
+            'host' =>  'openldap',
+            'port' => '389',
+            'uid' => 'uid',
+            'encryption' => 'plain',
+            'verify_certificates' => 'false',
+            'bind_dn' => '${_BIND_USER_DN}',
+            'password' => '${_BIND_USER_PSWD}',
+            'timeout' => 10,
+            'active_directory' => 'false',
+            'allow_username_or_email_login' => 'false',
+            'block_auto_created_users' => 'false',
+            'base' => '${_SEARCH_BASE_DN}',
+            'user_filter' => '',
+            'attributes' => {
+              'username' => ['uid'],
+              'email' => ['mail'],
+              'name' => 'cn',
+              'first_name' => 'givenName',
+              'last_name' => 'sn'
+            },
+            'lowercase_usernames' => true,
+            'group_base' => '${_SEARCH_BASE_DN}',
+          }
+        }
+        # https://docs.gitlab.com/ee/administration/auth/ldap/ldap_synchronization.html
+        gitlab_rails['ldap_sync_worker_cron'] = "0 */12 * * *"
+        gitlab_rails['ldap_group_sync_worker_cron'] = "0 */2 * * * *"
+        # Add any other gitlab.rb configuration here, each on its own line
+    ports:
+      - '${_GITLAB_HTTP_PORT}:80'
+      - '${_GITLAB_SSH_PORT}:22'
+    volumes:
+      - './gitlab/config:/etc/gitlab'
+      - './gitlab/logs:/var/log/gitlab'
+      - './gitlab/data:/var/opt/gitlab'
+      - './gitlab/entrypoint.sh:/code/entrypoint.sh'
+    entrypoint: /code/entrypoint.sh
+    shm_size: '256m'
+    depends_on:
+      - openldap
+  

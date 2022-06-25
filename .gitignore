@@ -1,0 +1,5 @@
+/gitlab/config/
+/gitlab/data/
+/gitlab/logs/
+/openldap/ldap/
+/openldap/slapd/
