@@ -42,7 +42,7 @@ services:
       - openldap
 
   web:
-    image: 'gitlab/gitlab-ce:latest'
+    image: 'gitlab/gitlab-ce:14.9.5-ce.0'
     container_name: gitlab-ce
     restart: always
     environment:
