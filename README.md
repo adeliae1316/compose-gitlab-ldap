@@ -61,9 +61,9 @@ Only special notes should be noted.
 ## When in trouble 
 
 - When you don't know the initial root password for GitLab.
-    - see `./gitlab/config/initial_root_password` .
+    - execute `docker exec -it gitlab-ce grep 'Password:' /etc/gitlab/initial_root_password` .
 - When you want to apply a sample DIF.
-    - execute `docker exec openldap ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/init.ldif` .
+    - execute `docker exec -it openldap ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/init.ldif` .
 - When you want to reset all data.
     1. execute `docker-compose down && docker-compose rm` .
     2. execute `sudo rm -r gitlab/config/ gitlab/data/ gitlab/logs/ openldap/ldap/ openldap/slapd/` .
